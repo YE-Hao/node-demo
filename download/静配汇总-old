@@ -1,0 +1,71 @@
+const { printerName, printTime, timeRange, isRepeatPrint } = data
+const summaryList = data.infusionPackSummaryDTOList
+const baseInfo = data.infusionPackSummaryDTOList[0]
+const header = `
+  <div style="text-align: center;font-size: 22px;font-weight: 600;margin-top: 35px">${baseInfo.campusName+sessionStorage.location}汇总单</div>
+`
+
+let printHtml = ''
+ 
+summaryList.forEach(wardInfo => {
+  const content = `
+    <div><span style="margin-right: 10px;position: relative;">单号：</span> <span>${wardInfo.provideOrderNumber}</span><span style="position: absolute;right: 15px;font-size: 20px;font-weight: 600">${timeRange}${isRepeatPrint}</span></div>
+    <div style="margin-bottom: 10px;font-weight: 600;font-size: 18px"><span style="margin-right: 10px">病区：</span> <span>${wardInfo.wardName}</span></div>
+    <table border="1" cellSpacing="0" cellPadding="0" style="width:100%;">
+      <thead>
+        <tr>
+          <td style='width: 13%;padding: 5px'>排药位置</td>
+          <td style='width: 30%;padding: 5px'>药品名称/规格</td>
+          <td style='text-align: center; width: 15%;padding: 5px'>
+            <span>实发</span>
+          </td>
+          <td style='text-align: center; width: 8%;padding: 5px'>单位</td>
+          <td style='width: 13%;padding: 5px'>二级库位</td>
+          <td style='width: 13%;padding: 5px'>备注</td>
+        </tr>
+      </thead>
+      <tbody>
+        ${wardInfo.summaryDTOList.map((value) => `
+          <tr>
+            <td style="padding: 5px">
+              <div style='height: 16px;  word-break: break-all; overflow: hidden; text-overflow: clip;'>${value.storageLocation || ''}
+              </div>
+            </td>
+            <td style="padding: 5px">
+              <div style='height:16px;  word-break: break-all; overflow: hidden; text-overflow: clip;'>${value.highRiskLevel && value.highRiskLevel.indexOf('FH0077') > -1 ? '(危)' : ''}${value.medicationName || ''}${value.specification || ''}</div>
+            </td>
+            <td style='text-align: center;padding: 5px;position: relative;'>
+              <div style='height:16px;'>
+                ${ value.consumptionReduction ?
+                  `<div style="position: absolute;bottom: 0;left: 0">${value.shouldBeSent || 0}-${value.consumptionReduction || 0}</div>` : ''}
+                <div style="font-weight: 600;font-size: 20px">${value.actualQuantity || 0}</div>
+              </div>
+            </td>
+            <td style='text-align: center;padding: 5px'>
+              <div style='height: 16px;  word-break: break-all; overflow: hidden; text-overflow: clip;'>${value.unit || ''}</div>
+            </td>
+            <td style="padding: 5px">
+              <div style='height: 16px;  word-break: break-all; overflow: hidden; text-overflow: clip;'>${value.allocationGoodsPosition || ''}</div>
+            </td>
+            <td style="padding: 5px">
+              <div style='height: 16px;  word-break: break-all; overflow: hidden; text-overflow: clip;'>${value.reservationNo || ''}
+              </div>
+            </td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `
+  const footer = `
+  <div style="margin-top:10px;position: relative;"><span style="margin-right: 15px">发药时间：${wardInfo.provideTime}</span><span style="margin-right: 15px">打印时间：${printTime}</span><span style="position: absolute;right: 15px">共${wardInfo.wardNum}组</span></div>
+`
+  printHtml += header + content + footer
+})
+const div = document.createElement('div');
+div.innerHTML = printHtml;
+document.body.appendChild(div);
+const pageSizeHeight = `${Math.ceil((div.clientHeight + 300) / 96)}in`;
+console.log('===pageSizeHeight', pageSizeHeight);
+LODOP.SET_PRINT_PAGESIZE(1, '210mm', pageSizeHeight, 'CreateCustomPage');
+LODOP.ADD_PRINT_HTM(0, 0, '100%', '100%', printHtml);
+document.body.removeChild(div);

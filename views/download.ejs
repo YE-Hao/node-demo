@@ -1,0 +1,10 @@
+<h1>download files</h1>
+<% if (results.length) { %>
+  <ul>
+    <% for (var i = 0; i < results.length; i++) { %>
+      <li><a href="<%= results[i].url %>"><%= results[i].name %></a></li>
+      <% } %>
+  </ul>
+  <% } else { %>
+    <p>No results</p>
+  <% } %>

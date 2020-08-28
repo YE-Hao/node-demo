@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+  <style>
+    span{
+      margin-left: 50px;
+    }
+  </style>
+</head>
+<body>
+  <h1>文件切片上传</h1>
+  <input type="file" id="file-blob"/>
+  <button onclick="handleUpload()">上传</button>
+  <div id="progress">
+
+  </div>
+  <script type="text/javascript">
+    const FILE_LENGTH = 10;
+    const fileBlob = {
+      file: null,
+    }
+    // 生成文件切片
+    function createFileChunk(file, length = FILE_LENGTH) {
+      const fileList = [];
+      const fileChunkSize = Math.ceil(file.size / length);
+      let curr = 0;
+      while (curr < file.size) {
+        fileList.push({ file: file.slice(curr, curr + fileChunkSize)});
+        curr += fileChunkSize
+      }
+      return fileList;
+    }
+    // 上传切片
+    async function uploadChunkFile(file) {
+      const fileChunkHash = createFileChunk(file).map((item, index) => {
+        return {
+          chunk: item.file,
+          hash: file.name + '-' + index,
+        }
+      });
+      showProgress(fileChunkHash);
+      const requestFiles = fileChunkHash.map((item) => {
+        const formData = new FormData();
+        formData.append('chunk', item.chunk);
+        formData.append('hash', item.hash);
+        formData.append('fileName', file.name);
+        return { formData };
+      }).map(async({ formData }, idx) => {
+        return $ajax({
+          url: 'http://127.0.0.1:8999/uploadChunk',
+          data: formData,
+          onProgress: createProgress(fileChunkHash[idx])
+        });
+      });
+      await Promise.all(requestFiles);
+      await mergeRequest();
+    }
+    // 合并切片
+   async function mergeRequest() {
+      await $ajax({
+        url: 'http://127.0.0.1:8999/merge',
+        data: JSON.stringify({
+          fileName: fileBlob.file.name,
+        }),
+        headers: {
+          'content-type': 'application/json;charset=utf8',
+        }
+      });
+    }
+    // 自执行函数
+    (function(){
+      const fileDom = document.getElementById('file-blob');
+      fileDom.onchange = function(v) {
+        fileBlob.file = v.target.files[0];
+      }
+    })();
+    function handleUpload() {
+      uploadChunkFile(fileBlob.file);
+    }
+    // 进度条
+    function createProgress(item){
+      return function(e) {
+        const percentage = (e.loaded / e.total) * 100;
+        const t = document.getElementById(`${item.hash}`);
+        t.innerText = `${percentage.toFixed(2)}%`;
+      }
+    }
+    // 显示进度条
+    function showProgress(fileList) {
+      const container = document.querySelector('#progress');
+      container.innerHTML = '';
+      const ul = document.createElement('ul');
+      ul.style.display = 'none';
+      let lis = '';
+      fileList.forEach((i,idex) => {
+        lis += `<li><span>${i.hash}</span><span id=${i.hash}></span>`
+      });
+      ul.innerHTML = lis;
+      ul.style.display = 'block';
+      container.appendChild(ul);
+    }
+    /**
+     * 简单分装的后台方法
+     * 
+     * 
+     */
+    function $ajax({
+    url,
+    method = 'post',
+    headers = {},
+    data,
+    onProgress = e => e,
+  }) {
+    return new Promise(resolve => {
+      const xhr = new XMLHttpRequest();
+      xhr.open(method, url);
+      Object.keys(headers).forEach((item) => {
+        xhr.setRequestHeader(item, headers[item]);
+      });
+      xhr.upload.onprogress = onProgress;
+      xhr.send(data);
+      xhr.onload = e => {
+        resolve({
+          data: e.target.response,
+        });
+      }
+    });
+  };
+  </script>
+</body>
+</html>
